@@ -7,7 +7,7 @@ def exec():
     link = 'http://'+ip+':'+port
     rURL = link + '/repo'
     cyclomaticURL = link + '/cyclomatic'
-    commits=0
+    commitsDone=0
     
     req = requests.get(link,json = {'pullState' : False})
     
@@ -34,6 +34,23 @@ def exec():
                 print("END, Nothing Remaining")
                 break
             subprocess.call(["bash", "getCommit.sh", json_data['sha']])
-    
+        
+        binaryCCVal = subprocess.check_output(["radon", "cc", "-s", "-a" , "Data"])
+        radonCCVal = CCVal.decode("utf-8")
+
+        print(radonCCVal)
+
+        avgCCStart = radonCCVal.rfind("(")
+        if radonCCVal[avgCCStart+1:-2] == "":
+            print("No Files")
+            r = requests.post(cycloURL, json={'commits': json_data['sha'], 'complexity': -1})
+        else:
+            avgCC = float(radonCCVal[avgCCStart+1:-2])  #Average cyclomatic complexity
+            r = requests.post(cycloURL, json={'commits': json_data['sha'], 'complexity': avgCC})
+        commitsDone += 1  #Commit count
+
+    print("Commits Done: ", commitsDone)
+
+
 if __name__ == "__main__":
     exec()
