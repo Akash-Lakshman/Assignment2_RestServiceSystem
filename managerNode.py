@@ -26,6 +26,52 @@ class getRepos(Resource):
 
 api.add_resource(getRepos, "/repo", endpoint="repo")
         
+#  API for obtaining commits and posting the cyclomatic results
+class apiCyclomatic(Resource):
+    def __init__(self):  # Upon initialisation of the class
+        global managerServer  # Init the global server
+        self.server = managerServer  # Init the global server
+        super(apiCyclomatic, self).__init__()  # Initialising the Resource class
+        self.reqparser = reqparse.RequestParser()
+
+        self.reqparser.add_argument('commitSha', type=str, location = 'json')  # Repeat for multiple variables
+        self.reqparser.add_argument('complexity', type=float, location='json')
+
+    def get(self):
+        if self.server.currWorkerCount < self.server.workerCount: # waiting for workers
+            time.sleep(0.1)
+            return {'sha': -2}
+        if len(self.server.commitList) == 0:  # No more commits to give
+            return {'sha': -1}
+        X = self.server.commitList[0]  # commit val to give next commit in list
+        del self.server.commitList[0]  
+        print("Sent: {}".format(X))
+        return {'sha':X}
+
+
+    def post(self):
+        args = self.reqparser.parse_args()  # parse the arguments from the POST
+        print("Received sha {}".format(args['commitSha']))
+        print("Received complexity {}".format(args['complexity']))
+        self.server.CCList.append({'sha':args['commitSha'], 'complexity':args['complexity']})
+        print(self.server.CCList)
+        print(self.server.commitList)
+        if len(self.server.CCList) == self.server.totalNumberOfCommits:
+            endTime = time.time() - self.server.startingTime
+            print(" Amount of time taken in seconds",(endTime))
+            
+            print(len(self.server.CCList))
+            AvgCC = 0
+            for x in self.server.CCList:
+                if x['complexity'] > 0:
+                    AvgCC += x['complexity']
+                else:
+                    print("Commit {} doesn't have a computable files".format(x['sha']))
+            AvgCC = AvgCC / len(self.server.CCList)
+            print(" CYCLOMATIC COMPLEXITY FOR THE REPOSITORY: ",AvgCC)
+        return {'success':True}
+
+api.add_resource(apiCyclomatic, "/cyclomatic", endpoint="cyclomatic")
 
 
 class managerNode():
